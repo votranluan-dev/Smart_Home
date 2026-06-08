@@ -1,0 +1,9 @@
+name: smart_home_backend
+description: Backend for ESP32 smart home project
+publish_to: 'none'
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  mysql1: ^0.20.0
