@@ -11,7 +11,7 @@ import '../models/feature_catalog_item.dart';
 import '../models/door_access_log_item.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.129:8080';
+  static const String baseUrl = 'http://192.168.1.6:8080';
 
   Future<List<DoorAccessLogItem>> getDoorAccessLogs(int deviceId) async {
     final response = await http.get(

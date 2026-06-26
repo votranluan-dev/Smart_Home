@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/notification_item.dart';
@@ -26,14 +28,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   List<DoorAccessLogItem> doorLogs = [];
 
   NotificationFilter selectedFilter = NotificationFilter.all;
+  Timer? autoRefreshTimer;
+  bool isFetchingNotifications = false;
 
   @override
   void initState() {
     super.initState();
+
     fetchNotifications();
+
+    autoRefreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      fetchNotifications();
+    });
+  }
+
+  @override
+  void dispose() {
+    autoRefreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> fetchNotifications() async {
+    if (isFetchingNotifications) return;
+
+    isFetchingNotifications = true;
+
     try {
       final data = await apiService.getNotifications(widget.deviceId);
       final doorData = await apiService.getDoorAccessLogs(widget.deviceId);
@@ -55,6 +74,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       });
 
       print('Fetch notifications error: $e');
+    } finally {
+      isFetchingNotifications = false;
     }
   }
 
@@ -62,7 +83,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (value.isEmpty) return 'Không rõ thời gian';
 
     try {
-      final dateTime = DateTime.parse(value).toLocal();
+      var raw = value.trim();
+
+      raw = raw.replaceFirst('Z', '');
+      raw = raw.replaceFirst(' ', 'T');
+
+      final dateTime = DateTime.parse(raw);
 
       final day = dateTime.day.toString().padLeft(2, '0');
       final month = dateTime.month.toString().padLeft(2, '0');
@@ -203,7 +229,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Notifications',
+          'Thông báo',
           style: TextStyle(
             color: darkText,
             fontSize: 34,
@@ -240,12 +266,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       child: Row(
         children: [
           _filterChip(
-            title: 'All',
+            title: 'Tất cả',
             filter: NotificationFilter.all,
             color: mainGreen,
           ),
           _filterChip(
-            title: 'Gas Alert',
+            title: 'Gas',
             filter: NotificationFilter.gasAlert,
             color: mainGreen,
             dotColor: Colors.red,
@@ -263,13 +289,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             dotColor: Colors.greenAccent,
           ),
           _filterChip(
-            title: 'Rain',
+            title: 'Mưa',
             filter: NotificationFilter.rain,
             color: mainGreen,
             dotColor: Colors.blueAccent,
           ),
           _filterChip(
-            title: 'Mở cửa',
+            title: 'Cửa',
             filter: NotificationFilter.doorAccess,
             color: mainGreen,
             dotColor: Colors.purpleAccent,
@@ -625,13 +651,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ? Icons.lock_open_rounded
         : Icons.lock_outline_rounded;
 
-    final title = granted ? 'Mở cửa thành công' : 'Từ chối mở cửa';
-
-    final subtitle = item.message.isNotEmpty
-        ? item.message
+    final title = item.message.trim().isNotEmpty
+        ? item.message.trim()
         : granted
-        ? 'Thẻ RFID hợp lệ, cửa đã được mở.'
-        : 'Thẻ RFID không hợp lệ hoặc không có quyền mở cửa.';
+        ? 'Mở cửa thành công'
+        : 'Từ chối mở cửa';
 
     return Container(
       width: double.infinity,
@@ -673,6 +697,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
+
                     Row(
                       children: [
                         Icon(eventIcon, color: eventColor, size: 18),
@@ -689,17 +714,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                       ],
                     ),
+
                     const SizedBox(height: 6),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        height: 1.25,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
+
                     Text(
                       item.cardName.isEmpty
                           ? 'UID: ${item.cardUid}'

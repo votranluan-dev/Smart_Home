@@ -1,8 +1,46 @@
 import 'dart:convert';
+import 'dart:math';
+import 'package:crypto/crypto.dart';
 import 'package:mysql1/mysql1.dart';
 
 class DbService {
   late MySqlConnection conn;
+
+  String generateDeviceToken({int length = 32}) {
+    const chars =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final random = Random.secure();
+
+    return List.generate(
+      length,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
+  }
+
+  String hashPassword(String password) {
+    final bytes = utf8.encode(password.trim());
+    return sha256.convert(bytes).toString();
+  }
+
+  bool isPasswordCorrect({
+    required String inputPassword,
+    required String storedPassword,
+  }) {
+    final input = inputPassword.trim();
+    final stored = storedPassword.trim();
+
+    // Cách cũ: database đang lưu trực tiếp 123456
+    if (stored == input) {
+      return true;
+    }
+
+    // Cách mới: database lưu hash của mật khẩu
+    if (stored == hashPassword(input)) {
+      return true;
+    }
+
+    return false;
+  }
 
   Future<void> checkAndSaveGasAlert({
     required int deviceId,
@@ -365,9 +403,10 @@ class DbService {
       device_id,
       event_type,
       title,
-      message
+      message,
+      created_at
     )
-    VALUES (?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, NOW())
     ''',
       [deviceId, eventType, title, message],
     );
@@ -378,7 +417,15 @@ class DbService {
   Future<void> markDeviceOnline(int deviceId) async {
     final result = await conn.query(
       '''
-    SELECT is_online
+    SELECT 
+      is_online,
+      last_seen,
+      CASE
+        WHEN last_seen IS NOT NULL
+         AND TIMESTAMPDIFF(SECOND, last_seen, NOW()) <= 15
+        THEN 1
+        ELSE 0
+      END AS is_online_now
     FROM devices
     WHERE id = ?
     LIMIT 1
@@ -388,7 +435,10 @@ class DbService {
 
     if (result.isEmpty) return;
 
-    final bool wasOnline = result.first['is_online'] == 1;
+    final row = result.first;
+
+    // Online thật sự là có last_seen trong vòng 15 giây gần nhất
+    final bool wasReallyOnline = row['is_online_now'] == 1;
 
     await conn.query(
       '''
@@ -401,7 +451,9 @@ class DbService {
       [deviceId],
     );
 
-    if (!wasOnline) {
+    // Nếu trước đó đã quá 15 giây không gửi dữ liệu,
+    // lần gửi mới này được xem là kết nối lại
+    if (!wasReallyOnline) {
       await insertDeviceEvent(
         deviceId: deviceId,
         eventType: 'ONLINE',
@@ -550,19 +602,30 @@ class DbService {
       id,
       full_name,
       email,
+      password_hash,
       phone,
       role
     FROM users
     WHERE email = ?
-      AND password_hash = ?
     LIMIT 1
     ''',
-      [email, password],
+      [email.trim()],
     );
 
     if (results.isEmpty) return null;
 
     final row = results.first;
+
+    final storedPassword = mysqlValueToString(row['password_hash']);
+
+    final isCorrect = isPasswordCorrect(
+      inputPassword: password,
+      storedPassword: storedPassword,
+    );
+
+    if (!isCorrect) {
+      return null;
+    }
 
     return {
       'id': row['id'],
@@ -630,34 +693,56 @@ class DbService {
     )
     VALUES (?, ?, ?, ?, 'CUSTOMER')
     ''',
-      [fullName, email, password, phone],
+      [fullName, email, hashPassword(password), phone],
     );
 
     return result.insertId ?? 0;
   }
 
   Future<void> deleteCustomer(int customerId) async {
-    final check = await conn.query(
+    // 1. Lấy danh sách thiết bị của khách hàng
+    final deviceResults = await conn.query(
       '''
-    SELECT id, role
-    FROM users
-    WHERE id = ?
-    LIMIT 1
+    SELECT id
+    FROM devices
+    WHERE user_id = ?
     ''',
       [customerId],
     );
 
-    if (check.isEmpty) {
-      throw Exception('Customer not found');
+    final deviceIds = deviceResults.map((row) => row['id'] as int).toList();
+
+    // 2. Xóa toàn bộ dữ liệu con theo từng thiết bị
+    for (final deviceId in deviceIds) {
+      await conn.query('DELETE FROM door_access_logs WHERE device_id = ?', [
+        deviceId,
+      ]);
+
+      await conn.query('DELETE FROM alerts WHERE device_id = ?', [deviceId]);
+
+      await conn.query('DELETE FROM device_events WHERE device_id = ?', [
+        deviceId,
+      ]);
+
+      await conn.query('DELETE FROM sensor_logs WHERE device_id = ?', [
+        deviceId,
+      ]);
+
+      await conn.query('DELETE FROM commands WHERE device_id = ?', [deviceId]);
+
+      await conn.query('DELETE FROM device_features WHERE device_id = ?', [
+        deviceId,
+      ]);
+
+      await conn.query('DELETE FROM device_states WHERE device_id = ?', [
+        deviceId,
+      ]);
     }
 
-    final row = check.first;
-    final role = mysqlValueToString(row['role']);
+    // 3. Xóa thiết bị của khách hàng
+    await conn.query('DELETE FROM devices WHERE user_id = ?', [customerId]);
 
-    if (role != 'CUSTOMER') {
-      throw Exception('Only CUSTOMER can be deleted');
-    }
-
+    // 4. Xóa tài khoản khách hàng
     await conn.query(
       '''
     DELETE FROM users
@@ -947,6 +1032,8 @@ class DbService {
     required String deviceCode,
     required String deviceToken,
   }) async {
+    final secureDeviceToken = generateDeviceToken();
+
     final result = await conn.query(
       '''
     INSERT INTO devices (
@@ -959,7 +1046,7 @@ class DbService {
     )
     VALUES (?, ?, ?, ?, 0, NOW())
     ''',
-      [userId, deviceName, deviceCode, deviceToken],
+      [userId, deviceName, deviceCode, secureDeviceToken],
     );
 
     final deviceId = result.insertId;
@@ -1072,7 +1159,7 @@ class DbService {
         password_hash = ?
       WHERE id = ?
       ''',
-        [fullName, email, phone, newPassword, userId],
+        [fullName, email, phone, hashPassword(newPassword), userId],
       );
     } else {
       await conn.query(

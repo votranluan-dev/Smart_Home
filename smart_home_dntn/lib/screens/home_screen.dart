@@ -157,6 +157,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Widget _offlineDisabled({required Widget child}) {
+    final bool offline = state.isOnline == false;
+
+    return Opacity(
+      opacity: offline ? 0.45 : 1,
+      child: IgnorePointer(ignoring: offline, child: child),
+    );
+  }
+
   Widget _activeText({required String text, required bool active}) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
@@ -300,9 +309,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     darkText: darkText,
                     isOnline: state.isOnline == true,
                     title: widget.titleOverride ?? state.deviceName,
-                    onBackTap: () {
-                      Navigator.maybePop(context);
-                    },
+                    onBackTap: widget.isAdminDemo
+                        ? () {
+                            Navigator.maybePop(context);
+                          }
+                        : null,
                     onNotificationTap: () {
                       Navigator.push(
                         context,
@@ -370,38 +381,40 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(width: 18),
                         Expanded(
                           flex: 5,
-                          child: Mq2Control(
-                            mq2Enabled: state.mq2Enabled,
-                            threshold: state.threshold,
-                            mainGreen: mainGreen,
-                            lightGray: lightGray,
-                            darkText: darkText,
-                            onToggleMq2: () {
-                              final newValue = !state.mq2Enabled;
+                          child: _offlineDisabled(
+                            child: Mq2Control(
+                              mq2Enabled: state.mq2Enabled,
+                              threshold: state.threshold,
+                              mainGreen: mainGreen,
+                              lightGray: lightGray,
+                              darkText: darkText,
+                              onToggleMq2: () {
+                                final newValue = !state.mq2Enabled;
 
-                              setState(() {
-                                state.mq2Enabled = newValue;
-                              });
+                                setState(() {
+                                  state.mq2Enabled = newValue;
+                                });
 
-                              sendCommandAndRefresh(
-                                apiService.updateMq2Enabled(
-                                  state.deviceId,
-                                  newValue,
-                                ),
-                              );
-                            },
-                            onThresholdChanged: (value) {
-                              setState(() {
-                                state.threshold = value;
-                              });
+                                sendCommandAndRefresh(
+                                  apiService.updateMq2Enabled(
+                                    state.deviceId,
+                                    newValue,
+                                  ),
+                                );
+                              },
+                              onThresholdChanged: (value) {
+                                setState(() {
+                                  state.threshold = value;
+                                });
 
-                              sendCommandAndRefresh(
-                                apiService.updateThreshold(
-                                  state.deviceId,
-                                  value,
-                                ),
-                              );
-                            },
+                                sendCommandAndRefresh(
+                                  apiService.updateThreshold(
+                                    state.deviceId,
+                                    value,
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ),
                       ],
@@ -425,42 +438,46 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
 
                   if (state.hasFeature('LIGHT_1')) ...[
-                    LightControlRow(
-                      title: 'Đèn 1',
-                      value: state.light1,
-                      mainGreen: mainGreen,
-                      onTap: () {
-                        final newValue = !state.light1;
+                    _offlineDisabled(
+                      child: LightControlRow(
+                        title: 'Đèn 1',
+                        value: state.light1,
+                        mainGreen: mainGreen,
+                        onTap: () {
+                          final newValue = !state.light1;
 
-                        setState(() {
-                          state.light1 = newValue;
-                        });
+                          setState(() {
+                            state.light1 = newValue;
+                          });
 
-                        sendCommandAndRefresh(
-                          apiService.updateLight1(state.deviceId, newValue),
-                        );
-                      },
+                          sendCommandAndRefresh(
+                            apiService.updateLight1(state.deviceId, newValue),
+                          );
+                        },
+                      ),
                     ),
 
                     const SizedBox(height: 34),
                   ],
 
                   if (state.hasFeature('LIGHT_2')) ...[
-                    LightControlRow(
-                      title: 'Đèn 2',
-                      value: state.light2,
-                      mainGreen: mainGreen,
-                      onTap: () {
-                        final newValue = !state.light2;
+                    _offlineDisabled(
+                      child: LightControlRow(
+                        title: 'Đèn 2',
+                        value: state.light2,
+                        mainGreen: mainGreen,
+                        onTap: () {
+                          final newValue = !state.light2;
 
-                        setState(() {
-                          state.light2 = newValue;
-                        });
+                          setState(() {
+                            state.light2 = newValue;
+                          });
 
-                        sendCommandAndRefresh(
-                          apiService.updateLight2(state.deviceId, newValue),
-                        );
-                      },
+                          sendCommandAndRefresh(
+                            apiService.updateLight2(state.deviceId, newValue),
+                          );
+                        },
+                      ),
                     ),
 
                     const SizedBox(height: 46),
@@ -500,36 +517,40 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
 
                   if (state.hasFeature('RAIN_CURTAIN')) ...[
-                    _manualAutoControl(),
+                    _offlineDisabled(child: _manualAutoControl()),
 
                     const SizedBox(height: 30),
 
-                    _curtainButtonRow(
-                      title: 'Kéo vào',
-                      value: state.curtainIn,
-                      onTap: () {
-                        final newCurtainIn = !state.curtainIn;
+                    _offlineDisabled(
+                      child: _curtainButtonRow(
+                        title: 'Kéo vào',
+                        value: state.curtainIn,
+                        onTap: () {
+                          final newCurtainIn = !state.curtainIn;
 
-                        updateCurtainState(
-                          curtainIn: newCurtainIn,
-                          curtainOut: newCurtainIn ? false : state.curtainOut,
-                        );
-                      },
+                          updateCurtainState(
+                            curtainIn: newCurtainIn,
+                            curtainOut: newCurtainIn ? false : state.curtainOut,
+                          );
+                        },
+                      ),
                     ),
 
                     const SizedBox(height: 28),
 
-                    _curtainButtonRow(
-                      title: 'Kéo ra',
-                      value: state.curtainOut,
-                      onTap: () {
-                        final newCurtainOut = !state.curtainOut;
+                    _offlineDisabled(
+                      child: _curtainButtonRow(
+                        title: 'Kéo ra',
+                        value: state.curtainOut,
+                        onTap: () {
+                          final newCurtainOut = !state.curtainOut;
 
-                        updateCurtainState(
-                          curtainIn: newCurtainOut ? false : state.curtainIn,
-                          curtainOut: newCurtainOut,
-                        );
-                      },
+                          updateCurtainState(
+                            curtainIn: newCurtainOut ? false : state.curtainIn,
+                            curtainOut: newCurtainOut,
+                          );
+                        },
+                      ),
                     ),
 
                     const SizedBox(height: 30),

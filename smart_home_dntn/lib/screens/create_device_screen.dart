@@ -21,7 +21,6 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
 
   final TextEditingController deviceNameController = TextEditingController();
   final TextEditingController deviceCodeController = TextEditingController();
-  final TextEditingController deviceTokenController = TextEditingController();
 
   bool isLoading = false;
   String? errorMessage;
@@ -40,18 +39,16 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
   void dispose() {
     deviceNameController.dispose();
     deviceCodeController.dispose();
-    deviceTokenController.dispose();
     super.dispose();
   }
 
   Future<void> createDevice() async {
     final deviceName = deviceNameController.text.trim();
     final deviceCode = deviceCodeController.text.trim();
-    final deviceToken = deviceTokenController.text.trim();
 
-    if (deviceName.isEmpty || deviceCode.isEmpty || deviceToken.isEmpty) {
+    if (deviceName.isEmpty || deviceCode.isEmpty) {
       setState(() {
-        errorMessage = 'Vui lòng nhập đầy đủ thông tin thiết bị';
+        errorMessage = 'Vui lòng nhập tên thiết bị và device code';
       });
       return;
     }
@@ -66,7 +63,7 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
         customerId: widget.customerId,
         deviceName: deviceName,
         deviceCode: deviceCode,
-        deviceToken: deviceToken,
+        deviceToken: 'AUTO_GENERATE',
       );
 
       if (!mounted) return;
@@ -265,13 +262,6 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
                   ),
 
                   const SizedBox(height: 18),
-
-                  _input(
-                    label: 'Device token',
-                    hint: 'Ví dụ: token_demo_abcdef',
-                    controller: deviceTokenController,
-                    icon: Icons.vpn_key_rounded,
-                  ),
 
                   if (errorMessage != null) ...[
                     const SizedBox(height: 16),

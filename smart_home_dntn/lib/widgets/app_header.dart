@@ -29,12 +29,15 @@ class AppHeader extends StatelessWidget {
       children: [
         Row(
           children: [
-            IconButton(
-              onPressed: onBackTap ?? () => Navigator.maybePop(context),
-              icon: const Icon(Icons.arrow_back_rounded),
-              color: const Color(0xFF222222),
-              iconSize: 30,
-            ),
+            if (onBackTap != null)
+              IconButton(
+                onPressed: onBackTap,
+                icon: const Icon(Icons.arrow_back_rounded),
+                color: const Color(0xFF222222),
+                iconSize: 30,
+              )
+            else
+              const SizedBox(width: 48),
 
             const Spacer(),
 

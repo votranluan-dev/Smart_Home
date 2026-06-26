@@ -29,7 +29,7 @@ void main() async {
       await request.response.close();
       continue;
     }
-    
+
     // ======================================================
     // GET /door-access-logs?deviceId=...
     // Flutter app lấy lịch sử mở cửa theo thiết bị
@@ -302,17 +302,24 @@ void main() async {
 
         final deviceName = data['deviceName']?.toString().trim() ?? '';
         final deviceCode = data['deviceCode']?.toString().trim() ?? '';
-        final deviceToken = data['deviceToken']?.toString().trim() ?? '';
 
-        if (deviceName.isEmpty || deviceCode.isEmpty || deviceToken.isEmpty) {
-          throw Exception('Missing device information');
+        if (deviceName.isEmpty || deviceCode.isEmpty) {
+          request.response.statusCode = 400;
+          request.response.write(
+            jsonEncode({
+              'status': 'error',
+              'message': 'Device name and device code are required',
+            }),
+          );
+          await request.response.close();
+          continue;
         }
 
         final deviceId = await db.createDeviceForCustomer(
           userId: customerId,
           deviceName: deviceName,
           deviceCode: deviceCode,
-          deviceToken: deviceToken,
+          deviceToken: 'AUTO_GENERATE',
         );
 
         request.response
