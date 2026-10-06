@@ -27,7 +27,7 @@
     },
     {
       "name": "meta",
-      "rootUri": "file:///C:/Users/votra/AppData/Local/Pub/Cache/hosted/pub.dev/meta-1.18.2",
+      "rootUri": "file:///C:/Users/votra/AppData/Local/Pub/Cache/hosted/pub.dev/meta-1.19.0",
       "packageUri": "lib/",
       "languageVersion": "3.5"
     },
@@ -45,13 +45,13 @@
     },
     {
       "name": "pool",
-      "rootUri": "file:///C:/Users/votra/AppData/Local/Pub/Cache/hosted/pub.dev/pool-1.5.2",
+      "rootUri": "file:///C:/Users/votra/AppData/Local/Pub/Cache/hosted/pub.dev/pool-1.5.3",
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "stack_trace",
-      "rootUri": "file:///C:/Users/votra/AppData/Local/Pub/Cache/hosted/pub.dev/stack_trace-1.12.1",
+      "rootUri": "file:///C:/Users/votra/AppData/Local/Pub/Cache/hosted/pub.dev/stack_trace-1.12.2",
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
@@ -69,8 +69,8 @@
     }
   ],
   "generator": "pub",
-  "generatorVersion": "3.11.5",
+  "generatorVersion": "3.12.2",
   "flutterRoot": "file:///C:/Users/votra/flutter",
-  "flutterVersion": "3.41.9",
+  "flutterVersion": "3.44.7",
   "pubCache": "file:///C:/Users/votra/AppData/Local/Pub/Cache"
 }
